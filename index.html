@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling List Tester</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="app">
+        <h1>Spelling List Tester</h1>
+        <button onclick="enterSetupMode()">Setup Mode</button>
+        <button onclick="enterTestMode()">Test Mode</button>
+
+        <!-- Setup Mode UI -->
+        <div id="setupMode" style="display:none;">
+            <h2>Setup Spelling List</h2>
+            <label for="difficulty">Select Difficulty Level:</label>
+            <select id="difficulty">
+                <option value="simple">Simple</option>
+                <option value="useful">Useful</option>
+                <option value="common">Common</option>
+                <option value="uncommon">Uncommon</option>
+            </select>
+            <label for="generationType">Type of Generation:</label>
+            <select id="generationType">
+                <option value="random">Random</option>
+                <option value="related">Related</option>
+            </select>
+            <label for="wordCount">Number of Words (4-10):</label>
+            <input type="number" id="wordCount" min="4" max="10" value="4">
+            <button onclick="generateWordList()">Generate Word List</button>
+            <button onclick="uploadFile()">Upload File (PDF/JPEG)</button>
+            <input type="file" id="fileInput" style="display:none;" accept="application/pdf, image/jpeg">
+            <div id="wordListContainer"></div>
+        </div>
+
+        <!-- Test Mode UI -->
+        <div id="testMode" style="display:none;">
+            <h2>Start Spelling Test</h2>
+            <label for="testOrder">Order of Words:</label>
+            <select id="testOrder">
+                <option value="sequential">Sequential</option>
+                <option value="random">Random</option>
+            </select>
+            <label for="interval">Interval Between Words (seconds):</label>
+            <select id="interval">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+            </select>
+            <button onclick="startTest()">Start Test</button>
+            <div id="countdownContainer"></div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
