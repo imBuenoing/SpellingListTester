@@ -1,86 +1,97 @@
-const API_URL = "https://api.openai.com/v1/completions";
-const API_KEY_STORAGE_KEY = 'openaiApiKey';
+// Check if API key is saved in localStorage
+const apiKey = localStorage.getItem('openaiApiKey');
 
-// Function to fetch words and sentences using OpenAI's API
-async function fetchWordsAndSentences(difficulty, numberOfWords, apiKey) {
-    const prompt = `Generate ${numberOfWords} child-friendly words and example sentences with a focus on simple, easy-to-learn words for young children (ages 5-7). Ensure the sentences are engaging and easy to understand.`;
+// If API key is saved, hide the API input section
+if (apiKey) {
+    document.getElementById('apiKeySection').classList.add('hidden');
+}
+
+// Function to save the API Key to localStorage
+document.getElementById("saveApiKeyButton").addEventListener("click", () => {
+    const apiKeyInput = document.getElementById("apiKeyInput").value;
+    if (apiKeyInput) {
+        localStorage.setItem('openaiApiKey', apiKeyInput);
+        document.getElementById('apiKeySection').classList.add('hidden');
+    } else {
+        alert("Please enter a valid API Key.");
+    }
+});
+
+// Function to fetch words and sentences from OpenAI API
+async function fetchWordsFromOpenAI(numberOfWords) {
+    const apiKey = localStorage.getItem('openaiApiKey');
     
+    if (!apiKey) {
+        alert("API Key is required.");
+        return;
+    }
+
+    const prompt = `Generate a list of ${numberOfWords} simple and child-friendly words with a sentence that includes each word. The words should be easy enough for a 5-year-old to learn.`;
+
     const headers = {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`
     };
 
     const body = JSON.stringify({
-        model: "gpt-4o-mini",  // Use appropriate model
-        prompt: prompt,
-        max_tokens: 150,
-        n: 1,
-        temperature: 0.7,
+        model: "gpt-4",
+        messages: [
+            { role: "system", content: "You are a helpful assistant." },
+            { role: "user", content: prompt }
+        ]
     });
 
     try {
-        const response = await fetch(API_URL, { method: "POST", headers, body });
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: headers,
+            body: body
+        });
+        
         if (!response.ok) {
-            throw new Error(`Error: ${response.statusText}`);
+            throw new Error("API request failed");
         }
 
         const data = await response.json();
-        const words = data.choices[0].text.trim().split("\n").map((entry, index) => {
-            const [word, sentence] = entry.split(" - ");
-            return { id: index + 1, word: word.trim(), sentence: sentence.trim() };
+        const message = data.choices[0].message.content;
+
+        // Parse the message to extract words and sentences
+        const wordList = message.split("\n").map((line, index) => {
+            const [word, sentence] = line.split(" - ");
+            return {
+                id: index + 1,
+                word: word.trim(),
+                sentence: sentence.trim()
+            };
         });
 
-        localStorage.setItem('spellingList', JSON.stringify(words));
-        return words;
+        localStorage.setItem('spellingList', JSON.stringify(wordList));
+        return wordList;
 
     } catch (error) {
         console.error("Error fetching words from OpenAI:", error);
-        alert("Failed to fetch words. Please check your API key or try again.");
+        alert("Failed to fetch words from OpenAI.");
     }
 }
 
 // Generate and Display Word List
-async function generateAndDisplayWordList(difficulty, numberOfWords, apiKey) {
-    const wordList = await fetchWordsAndSentences(difficulty, numberOfWords, apiKey);
+async function generateAndDisplayWordList(numberOfWords) {
+    const wordList = await fetchWordsFromOpenAI(numberOfWords);
 
-    const listContainer = document.getElementById('wordListContainer');
-    listContainer.innerHTML = "";
+    if (wordList) {
+        const listContainer = document.getElementById('wordListContainer');
+        listContainer.innerHTML = "";
 
-    wordList.forEach(item => {
-        const listItem = document.createElement('p');
-        listItem.innerHTML = `${item.id}. ${item.word} - ${item.sentence}`;
-        listContainer.appendChild(listItem);
-    });
+        wordList.forEach(item => {
+            const listItem = document.createElement('p');
+            listItem.innerHTML = `${item.id}. ${item.word} - ${item.sentence}`;
+            listContainer.appendChild(listItem);
+        });
+    }
 }
 
 // Event Listener for "Generate Word List" button
 document.getElementById("generateButton").addEventListener("click", () => {
-    const difficulty = document.getElementById("difficultySelect").value;
     const numberOfWords = parseInt(document.getElementById("wordCountSelect").value);
-    const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-
-    if (!apiKey) {
-        alert("Please enter your OpenAI API key.");
-        return;
-    }
-
-    generateAndDisplayWordList(difficulty, numberOfWords, apiKey);
+    generateAndDisplayWordList(numberOfWords);
 });
-
-// Save API Key
-document.getElementById("saveApiKeyButton").addEventListener("click", () => {
-    const apiKey = document.getElementById("apiKeyInput").value;
-    if (apiKey) {
-        localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
-        document.getElementById("apiKeySection").style.display = "none";
-        alert("API key saved successfully.");
-    } else {
-        alert("Please enter a valid API key.");
-    }
-});
-
-// Check if API Key is already saved and hide input section if it is
-if (localStorage.getItem(API_KEY_STORAGE_KEY)) {
-    document.getElementById("apiKeySection").style.display = "none";
-}
-
