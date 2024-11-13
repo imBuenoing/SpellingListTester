@@ -1,47 +1,56 @@
-// Register the Service Worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-    .then(() => console.log("Service Worker Registered"))
-    .catch(error => console.error("Service Worker Registration Failed:", error));
-}
+// Function to call OpenAI API and generate words with sentences
+async function fetchWordsFromOpenAI(apiKey, numberOfWords) {
+    const prompt = `
+    Generate a list of ${numberOfWords} simple and child-friendly words with sentences. 
+    The sentences should use each word in a way that is easy for a 5-year-old to understand. 
+    Avoid using complex or technical terms. Provide each word with a sentence where the word is used in context.
+    `;
 
-// Base URL for Random Words API
-const API_URL = "https://random-word-api.herokuapp.com/word";
+    const data = {
+        model: "text-davinci-003",
+        prompt: prompt,
+        max_tokens: 150,
+        temperature: 0.7
+    };
 
-// Function to fetch words from the API
-async function fetchWords(difficulty, numberOfWords) {
-    const url = `${API_URL}?number=${numberOfWords}`;
-    
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch words: ${response.statusText}`);
-        }
-        
-        const words = await response.json();
-        const wordList = words.map((word, index) => {
-            const sentence = `This is a sentence with the word **${word}**.`;
-            return {
-                id: index + 1,
-                word: word,
-                sentence: sentence
-            };
+        const response = await fetch('https://api.openai.com/v1/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(data)
         });
 
-        localStorage.setItem('spellingList', JSON.stringify(wordList));
-        
-        console.log("Generated word list saved:", wordList);
-        return wordList;
+        const result = await response.json();
+        if (result.choices && result.choices.length > 0) {
+            const wordList = result.choices[0].text.trim().split("\n").map((item, index) => {
+                const [word, ...sentence] = item.split(" - ");
+                return {
+                    id: index + 1,
+                    word: word.trim(),
+                    sentence: sentence.join(" - ").trim()
+                };
+            });
+
+            localStorage.setItem('spellingList', JSON.stringify(wordList));
+            return wordList;
+        } else {
+            alert('Error generating words. Please check your API key or try again.');
+            return [];
+        }
 
     } catch (error) {
-        console.error("Error fetching words:", error);
-        alert("Error generating the word list. Please try again.");
+        console.error("Error fetching words from OpenAI:", error);
+        alert("Failed to fetch words. Please check your API key and try again.");
+        return [];
     }
 }
 
 // Generate and Display Word List
-async function generateAndDisplayWordList(difficulty, numberOfWords) {
-    const wordList = await fetchWords(difficulty, numberOfWords);
+async function generateAndDisplayWordList(apiKey, numberOfWords) {
+    const wordList = await fetchWordsFromOpenAI(apiKey, numberOfWords);
 
     const listContainer = document.getElementById('wordListContainer');
     listContainer.innerHTML = "";
@@ -55,7 +64,13 @@ async function generateAndDisplayWordList(difficulty, numberOfWords) {
 
 // Event Listener for "Generate Word List" button
 document.getElementById("generateButton").addEventListener("click", () => {
-    const difficulty = document.getElementById("difficultySelect").value;
+    const apiKey = document.getElementById("apiKey").value.trim();
     const numberOfWords = parseInt(document.getElementById("wordCountSelect").value);
-    generateAndDisplayWordList(difficulty, numberOfWords);
+
+    if (!apiKey) {
+        alert("Please enter a valid OpenAI API key.");
+        return;
+    }
+
+    generateAndDisplayWordList(apiKey, numberOfWords);
 });
