@@ -11,7 +11,7 @@ async function fetchWordsAndSentences(difficulty, numberOfWords, apiKey) {
     };
 
     const body = JSON.stringify({
-        model: "text-davinci-003",  // Use appropriate model
+        model: "gpt-4o-mini",  // Use appropriate model
         prompt: prompt,
         max_tokens: 150,
         n: 1,
