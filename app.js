@@ -1,93 +1,61 @@
-// Switching Modes
-function enterSetupMode() {
-    document.getElementById("setupMode").style.display = "block";
-    document.getElementById("testMode").style.display = "none";
+// Register the Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+    .then(() => console.log("Service Worker Registered"))
+    .catch(error => console.error("Service Worker Registration Failed:", error));
 }
 
-function enterTestMode() {
-    document.getElementById("setupMode").style.display = "none";
-    document.getElementById("testMode").style.display = "block";
-}
+// Base URL for Random Words API
+const API_URL = "https://random-word-api.herokuapp.com/word";
 
-// Generating Word List
-function generateWordList() {
-    const difficulty = document.getElementById("difficulty").value;
-    const generationType = document.getElementById("generationType").value;
-    const wordCount = document.getElementById("wordCount").value;
-
-    let wordList = []; // Mock generated list based on difficulty and generation type
+// Function to fetch words from the API
+async function fetchWords(difficulty, numberOfWords) {
+    const url = `${API_URL}?number=${numberOfWords}`;
     
-    for (let i = 1; i <= wordCount; i++) {
-        const word = `Word${i}`; // Placeholder for generated word
-        const sentence = `This is a sentence with the word <b><u>${word}</u></b>.`;
-        wordList.push({ word, sentence });
-    }
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch words: ${response.statusText}`);
+        }
+        
+        const words = await response.json();
+        const wordList = words.map((word, index) => {
+            const sentence = `This is a sentence with the word **${word}**.`;
+            return {
+                id: index + 1,
+                word: word,
+                sentence: sentence
+            };
+        });
 
-    localStorage.setItem('spellingList', JSON.stringify(wordList));
-    displayWordList(wordList);
+        localStorage.setItem('spellingList', JSON.stringify(wordList));
+        
+        console.log("Generated word list saved:", wordList);
+        return wordList;
+
+    } catch (error) {
+        console.error("Error fetching words:", error);
+        alert("Error generating the word list. Please try again.");
+    }
 }
 
-function displayWordList(wordList) {
-    const container = document.getElementById("wordListContainer");
-    container.innerHTML = "";
-    wordList.forEach((item, index) => {
-        const listItem = document.createElement("p");
-        listItem.innerHTML = `${index + 1}. ${item.word} - ${item.sentence}`;
-        container.appendChild(listItem);
+// Generate and Display Word List
+async function generateAndDisplayWordList(difficulty, numberOfWords) {
+    const wordList = await fetchWords(difficulty, numberOfWords);
+
+    const listContainer = document.getElementById('wordListContainer');
+    listContainer.innerHTML = "";
+
+    wordList.forEach(item => {
+        const listItem = document.createElement('p');
+        listItem.innerHTML = `${item.id}. ${item.word} - ${item.sentence}`;
+        listContainer.appendChild(listItem);
     });
 }
 
-// Test Mode - Start Test
-function startTest() {
-    const wordList = JSON.parse(localStorage.getItem('spellingList'));
-    if (!wordList || wordList.length === 0) {
-        alert("No words to test. Please generate or upload a list first.");
-        return;
-    }
-
-    const order = document.getElementById("testOrder").value;
-    const interval = parseInt(document.getElementById("interval").value) * 1000;
-    const testWords = order === "random" ? shuffle(wordList) : wordList;
-
-    let currentIndex = 0;
-
-    function nextWord() {
-        if (currentIndex >= testWords.length) {
-            finalCountdown();
-            return;
-        }
-
-        const { word, sentence } = testWords[currentIndex];
-        speak(`${word}. ${sentence}`);
-        currentIndex++;
-        
-        setTimeout(nextWord, interval);
-    }
-
-    function finalCountdown() {
-        let countdown = 60;
-        const countdownDisplay = document.getElementById("countdownContainer");
-        const intervalId = setInterval(() => {
-            countdownDisplay.textContent = `Final Check: ${countdown} seconds remaining`;
-            countdown--;
-
-            if (countdown <= 0) {
-                clearInterval(intervalId);
-                speak("The test has ended. Please put down your pencil.");
-            }
-        }, 1000);
-    }
-
-    nextWord();
-}
-
-// Speech Synthesis
-function speak(text) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    speechSynthesis.speak(utterance);
-}
-
-// Utility: Shuffle Array
-function shuffle(array) {
-    return array.sort(() => Math.random() - 0.5);
-}
+// Event Listener for "Generate Word List" button
+document.getElementById("generateButton").addEventListener("click", () => {
+    const difficulty = document.getElementById("difficultySelect").value;
+    const numberOfWords = parseInt(document.getElementById("wordCountSelect").value);
+    generateAndDisplayWordList(difficulty, numberOfWords);
+});
