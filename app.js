@@ -34,7 +34,7 @@ async function fetchWordsFromOpenAI(numberOfWords) {
     };
 
     const body = JSON.stringify({
-        model: "gpt-4",
+        model: "gpt-4o-mini",
         messages: [
             { role: "system", content: "You are a helpful assistant." },
             { role: "user", content: prompt }
