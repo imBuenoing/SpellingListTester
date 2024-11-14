@@ -1,205 +1,192 @@
-// Register the Service Worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-    .then(() => console.log("Service Worker Registered"))
-    .catch(error => console.error("Service Worker Registration Failed:", error));
+// Initialize OpenAI configuration (assuming an input for API key is handled elsewhere)
+async function fetchWordList(difficulty, wordCount) {
+    const apiKey = localStorage.getItem('openai_api_key');
+    if (!apiKey) {
+        alert('Please enter your OpenAI API key.');
+        return [];
+    }
+
+    const openaiUrl = "https://api.openai.com/v1/chat/completions";
+    const response = await fetch(openaiUrl, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+                { role: "system", content: "You are a helpful assistant." },
+                {
+                    role: "user",
+                    content: `Generate a list of ${wordCount} ${difficulty} spelling words suitable for a young child to learn, each with a simple sentence.`,
+                },
+            ],
+            max_tokens: 100,
+            temperature: 0.5,
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch words from OpenAI');
+    }
+
+    const data = await response.json();
+    if (data.choices && data.choices[0]) {
+        const text = data.choices[0].message.content;
+        return text.split('\n').map(line => {
+            const [word, sentence] = line.split(' - ');
+            return { word: word.trim(), sentence: sentence.trim() };
+        });
+    } else {
+        throw new Error('No valid response from OpenAI');
+    }
 }
 
-// Function to fetch words from OpenAI API
-async function fetchWordsFromOpenAI(numberOfWords) {
-    const apiKey = localStorage.getItem('openaiApiKey');
-    if (!apiKey) {
-        alert("OpenAI API key is missing. Please enter it to proceed.");
+// Save generated word list to localStorage with timestamp
+function saveWordSet(spellingList) {
+    const timestamp = new Date().toLocaleString();
+    const savedSets = JSON.parse(localStorage.getItem('savedSets')) || [];
+    const newSet = { name: `Set ${savedSets.length + 1} - ${timestamp}`, list: spellingList };
+    savedSets.push(newSet);
+    localStorage.setItem('savedSets', JSON.stringify(savedSets));
+    updateSavedSetsDropdown();
+}
+
+// Update dropdown menu with saved sets
+function updateSavedSetsDropdown() {
+    const dropdown = document.getElementById('savedSetsDropdown');
+    const savedSets = JSON.parse(localStorage.getItem('savedSets')) || [];
+    dropdown.innerHTML = '<option value="">Select a set</option>';
+    savedSets.forEach((set, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = set.name;
+        dropdown.appendChild(option);
+    });
+}
+
+// Load selected word set into test mode
+function loadSelectedSet() {
+    const dropdown = document.getElementById('savedSetsDropdown');
+    const selectedIndex = dropdown.value;
+    if (selectedIndex === "") {
+        alert("Please select a set to load.");
+        return;
+    }
+    const savedSets = JSON.parse(localStorage.getItem('savedSets'));
+    const selectedSet = savedSets[selectedIndex];
+    localStorage.setItem('currentSet', JSON.stringify(selectedSet));
+    document.getElementById('currentSetName').textContent = selectedSet.name;
+    showTestMode();
+}
+
+// Display Test Mode UI
+function showTestMode() {
+    document.getElementById('testModeSection').style.display = 'block';
+}
+
+// Test Mode Variables
+let testInterval;
+let currentIndex = 0;
+let paused = false;
+let currentSet = [];
+
+// Initialize Test Mode from the current set in localStorage
+function startTest() {
+    const setData = JSON.parse(localStorage.getItem('currentSet'));
+    if (!setData || !setData.list) {
+        alert("No set loaded for testing. Please load a set.");
         return;
     }
 
-    const prompt = `
-        Generate a list of ${numberOfWords} simple, age-appropriate words for a 5-year-old child to learn. 
-        For each word, also provide a simple sentence using that word. 
-        Return the response in this JSON format: [{ "word": "example", "sentence": "This is an example sentence." }]
-    `;
+    currentSet = setData.list;
+    currentIndex = 0;
+    const countdownTime = parseInt(document.getElementById("countdownSelect").value);
+
+    // Start test sequence
+    startTestSequence(countdownTime);
+    document.getElementById('pauseResumeButton').style.display = 'inline';
+    document.getElementById('repeatButton').style.display = 'inline';
+}
+
+// Start or resume the test sequence
+function startTestSequence(countdownTime) {
+    paused = false;
+    testInterval = setInterval(() => {
+        if (currentIndex < currentSet.length && !paused) {
+            showWordAndCountdown(currentSet[currentIndex], countdownTime);
+            currentIndex++;
+        } else {
+            clearInterval(testInterval);
+            if (currentIndex >= currentSet.length) {
+                alert("Test complete!");
+            }
+        }
+    }, countdownTime * 1000);
+}
+
+// Show word and countdown
+function showWordAndCountdown(wordData, countdownTime) {
+    const testDisplay = document.getElementById("testDisplay");
+    testDisplay.innerHTML = `<p>Word: <strong>${wordData.word}</strong></p><p>Sentence: ${wordData.sentence}</p>`;
+    speakText(`The word is ${wordData.word}. Here is a sentence: ${wordData.sentence}.`);
+}
+
+// Pause or resume test sequence
+function togglePauseResume() {
+    if (paused) {
+        paused = false;
+        startTestSequence(parseInt(document.getElementById("countdownSelect").value));
+        document.getElementById('pauseResumeButton').textContent = 'Pause';
+    } else {
+        paused = true;
+        clearInterval(testInterval);
+        document.getElementById('pauseResumeButton').textContent = 'Resume';
+    }
+}
+
+// Repeat the last word and sentence
+function repeatWord() {
+    if (currentIndex > 0) {
+        const lastWord = currentSet[currentIndex - 1];
+        showWordAndCountdown(lastWord, 0);
+    } else {
+        alert("No word to repeat.");
+    }
+}
+
+// Use Web Speech API to speak text
+function speakText(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utterance);
+}
+
+// Event Listeners
+document.getElementById("generateWordListButton").addEventListener("click", async () => {
+    const difficulty = document.getElementById('difficultyLevel').value;
+    const wordCount = parseInt(document.getElementById('wordCount').value);
 
     try {
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: [
-                    { role: "system", content: "You are a helpful assistant." },
-                    { role: "user", content: prompt }
-                ]
-            })
+        const wordList = await fetchWordList(difficulty, wordCount);
+        saveWordSet(wordList);
+
+        const wordListElem = document.getElementById("wordList");
+        wordListElem.innerHTML = "";
+        wordList.forEach(item => {
+            const li = document.createElement("li");
+            li.textContent = `${item.word} - ${item.sentence}`;
+            wordListElem.appendChild(li);
         });
-
-        // Ensure the request was successful
-        if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        // Verify that choices array exists and has content
-        if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-            throw new Error("Unexpected response format from OpenAI API.");
-        }
-
-        const wordListContent = data.choices[0].message.content;
-        
-        // Try parsing the JSON response from OpenAI
-        let wordList;
-        try {
-            wordList = JSON.parse(wordListContent);
-        } catch (parseError) {
-            console.error("Failed to parse JSON from OpenAI response:", parseError);
-            alert("The response format from OpenAI was not as expected.");
-            return;
-        }
-
-        // Save to localStorage and return the word list
-        localStorage.setItem('spellingList', JSON.stringify(wordList));
-        console.log("Generated word list saved:", wordList);
-        return wordList;
-
     } catch (error) {
-        console.error("Error fetching words from OpenAI:", error);
-        alert("Error generating the word list. Please check your API key and try again.");
-    }
-}
-
-// Display generated word list
-async function generateAndDisplayWordList(numberOfWords) {
-    const wordList = await fetchWordsFromOpenAI(numberOfWords);
-
-    const listContainer = document.getElementById('wordListContainer');
-    listContainer.innerHTML = "";
-
-    if (!wordList || wordList.length === 0) {
-        const errorMessage = document.createElement('p');
-        errorMessage.textContent = "No words were generated. Please try again.";
-        listContainer.appendChild(errorMessage);
-        return;
-    }
-
-    wordList.forEach((item, index) => {
-        const listItem = document.createElement('p');
-        listItem.innerHTML = `${index + 1}. ${item.word} - ${item.sentence}`;
-        listContainer.appendChild(listItem);
-    });
-}
-
-// Save OpenAI API key to localStorage
-document.getElementById("saveApiKeyButton").addEventListener("click", () => {
-    const apiKey = document.getElementById("apiKeyInput").value;
-    if (apiKey) {
-        localStorage.setItem('openaiApiKey', apiKey);
-        document.getElementById("apiKeySection").style.display = "none";
+        console.error("Error fetching words:", error);
+        alert("Failed to generate words. Check the console for details.");
     }
 });
-
-// Hide API key input section if already saved
-window.addEventListener("load", () => {
-    if (localStorage.getItem('openaiApiKey')) {
-        document.getElementById("apiKeySection").style.display = "none";
-    }
-});
-
-// Event Listener for "Generate Word List" button
-document.getElementById("generateButton").addEventListener("click", () => {
-    const numberOfWords = parseInt(document.getElementById("wordCountSelect").value);
-    generateAndDisplayWordList(numberOfWords);
-});
-
-// Display the Test Mode section if words are available
-function showTestMode() {
-    const testModeSection = document.getElementById('testModeSection');
-    const spellingList = JSON.parse(localStorage.getItem('spellingList'));
-
-    if (spellingList && spellingList.length > 0) {
-        testModeSection.style.display = 'block';
-    } else {
-        testModeSection.style.display = 'none';
-    }
-}
-
-// Function to initiate the test mode
-async function startTest() {
-    const spellingList = JSON.parse(localStorage.getItem('spellingList'));
-    if (!spellingList || spellingList.length === 0) {
-        alert("No words to test. Please generate a word list first.");
-        return;
-    }
-
-    // Retrieve countdown time and randomize order option
-    const countdownTime = parseInt(document.getElementById("countdownSelect").value);
-    const randomOrder = document.getElementById("randomOrderCheckbox").checked;
-
-    // Shuffle the list if random order is selected
-    const wordsToTest = randomOrder ? shuffleArray(spellingList) : [...spellingList];
-
-    // Display the test sequence
-    await runTestSequence(wordsToTest, countdownTime);
-}
-
-// Function to shuffle an array (Fisher-Yates Shuffle)
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
-// Function to handle the test sequence
-async function runTestSequence(wordList, countdownTime) {
-    const testDisplay = document.getElementById("testDisplay");
-    testDisplay.innerHTML = "<h3>Spelling Test in Progress</h3>";
-
-    for (const item of wordList) {
-        testDisplay.innerHTML = `<p>Word: <strong>${item.word}</strong></p><p>Sentence: ${item.sentence}</p>`;
-        await speakAndCountdown(item.word, item.sentence, countdownTime);
-    }
-
-    // Final summary announcement
-    testDisplay.innerHTML += "<p>Test complete! Review your answers.</p>";
-    await speakText("The test has ended. You have one minute to review your answers.");
-    await countdown(60);
-    testDisplay.innerHTML += "<p>Test has officially ended. Please put down your pencil.</p>";
-    await speakText("Test has officially ended. Please put down your pencil.");
-}
-
-// Function to speak a word and sentence with a countdown
-async function speakAndCountdown(word, sentence, countdownTime) {
-    await speakText(`The word is ${word}. Here is a sentence: ${sentence}.`);
-    await countdown(countdownTime);
-}
-
-// Function to speak text using Web Speech API
-async function speakText(text) {
-    return new Promise((resolve) => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.onend = resolve;
-        speechSynthesis.speak(utterance);
-    });
-}
-
-// Function to handle countdown display and audio cue
-async function countdown(seconds) {
-    const testDisplay = document.getElementById("testDisplay");
-    for (let i = seconds; i > 0; i--) {
-        testDisplay.innerHTML = `<p>Countdown: ${i} seconds</p>`;
-        if (i <= 10) {
-            await speakText(i.toString());
-        }
-        await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-}
-
-// Attach event listener to "Start Test" button
+document.getElementById("loadSetButton").addEventListener("click", loadSelectedSet);
 document.getElementById("startTestButton").addEventListener("click", startTest);
+document.getElementById("pauseResumeButton").addEventListener("click", togglePauseResume);
+document.getElementById("repeatButton").addEventListener("click", repeatWord);
 
-// Show Test Mode section if there is a word list available
-showTestMode();
+// Initialize saved sets on load
+updateSavedSetsDropdown();
