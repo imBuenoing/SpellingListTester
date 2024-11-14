@@ -4,64 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spelling List Tester</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <h1>Spelling List Tester</h1>
 
-    <!-- OpenAI API Key Input -->
-    <section id="apiKeySection">
-        <label for="apiKeyInput">Enter OpenAI API Key:</label>
-        <input id="apiKeyInput" type="text" placeholder="Enter API Key">
-        <button id="saveApiKeyButton">Save API Key</button>
-    </section>
-
-    <!-- Setup Mode -->
-    <section id="setup">
-        <label for="difficultySelect">Select Difficulty Level:</label>
-        <select id="difficultySelect">
+    <!-- Word Generation Section -->
+    <section id="generationSection">
+        <label for="difficultyLevel">Select Difficulty Level:</label>
+        <select id="difficultyLevel">
             <option value="simple">Simple</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
         </select>
-
-        <label for="wordCountSelect">Number of Words (4-10):</label>
-        <input id="wordCountSelect" type="number" min="4" max="10" value="5">
-
-        <button id="generateButton">Generate Word List</button>
+        <label for="wordCount">Number of Words (4-10):</label>
+        <input type="number" id="wordCount" value="6" min="4" max="10">
+        <button id="generateWordListButton">Generate Word List</button>
+        <div id="generatedWordsSection">
+            <h2>Generated Word List</h2>
+            <ol id="wordList"></ol>
+        </div>
     </section>
-
-    <!-- Display Generated Word List -->
-    <h2>Generated Word List</h2>
-    <div id="wordListContainer"></div>
-
-    <script src="app.js"></script>
 
     <!-- Saved Sets Interface -->
-<section id="savedSetsSection">
-    <h2>Saved Word Sets</h2>
-    <select id="savedSetsDropdown">
-        <option value="">Select a set</option>
-    </select>
-    <button id="loadSetButton">Load Set</button>
-</section>
+    <section id="savedSetsSection">
+        <h2>Saved Word Sets</h2>
+        <select id="savedSetsDropdown">
+            <option value="">Select a set</option>
+        </select>
+        <button id="loadSetButton">Load Set</button>
+    </section>
 
-<!-- Test Mode Interface -->
-<section id="testModeSection" style="display: none;">
-    <h2>Test Mode</h2>
-    <p>Testing Set: <span id="currentSetName"></span></p>
-    <label for="countdownSelect">Select countdown time between words:</label>
-    <select id="countdownSelect">
-        <option value="10">10 seconds</option>
-        <option value="20">20 seconds</option>
-        <option value="30">30 seconds</option>
-    </select>
-    <button id="startTestButton">Start Test</button>
-    <button id="pauseResumeButton" style="display: none;">Pause</button>
-    <button id="repeatButton" style="display: none;">Repeat</button>
-    <div id="testDisplay"></div>
-</section>
+    <!-- Test Mode Interface -->
+    <section id="testModeSection" style="display: none;">
+        <h2>Test Mode</h2>
+        <p>Testing Set: <span id="currentSetName"></span></p>
+        <label for="countdownSelect">Select countdown time between words:</label>
+        <select id="countdownSelect">
+            <option value="10">10 seconds</option>
+            <option value="20">20 seconds</option>
+            <option value="30">30 seconds</option>
+        </select>
+        <button id="startTestButton">Start Test</button>
+        <button id="pauseResumeButton" style="display: none;">Pause</button>
+        <button id="repeatButton" style="display: none;">Repeat</button>
+        <div id="testDisplay"></div>
+    </section>
 
-<script src="app.js"></script>
-    
+    <script src="app.js"></script>
 </body>
 </html>
