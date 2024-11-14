@@ -34,6 +34,26 @@
     <h2>Generated Word List</h2>
     <div id="wordListContainer"></div>
 
-    <script src="app.js"></script>
+    <!-- Test Mode Interface -->
+<section id="testModeSection" style="display: none;">
+    <h2>Test Mode</h2>
+    <label for="countdownSelect">Select countdown time between words:</label>
+    <select id="countdownSelect">
+        <option value="10">10 seconds</option>
+        <option value="20">20 seconds</option>
+        <option value="30">30 seconds</option>
+    </select>
+
+    <label>
+        <input type="checkbox" id="randomOrderCheckbox">
+        Randomize word order
+    </label>
+
+    <button id="startTestButton">Start Test</button>
+    <div id="testDisplay"></div>
+</section>
+
+<script src="app.js"></script>
+    
 </body>
 </html>
