@@ -3,61 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
     <title>Spelling List Tester</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- Material Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/material-design-icons/3.0.1/iconfont/material-icons.min.css" 
+          rel="stylesheet">
+    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Spelling List Tester</h1>
+    <div class="app-container">
+        <header>
+            <h1>Spelling List Tester</h1>
+            <nav>
+                <button class="nav-btn active" data-mode="setup">Setup Mode</button>
+                <button class="nav-btn" data-mode="test">Test Mode</button>
+            </nav>
+        </header>
 
-    <!-- API Key Input Section -->
-    <section id="apiKeySection">
-        <label for="apiKeyInput">Enter OpenAI API Key:</label>
-        <input type="text" id="apiKeyInput" placeholder="Enter your API key">
-        <button id="saveApiKeyButton">Save API Key</button>
-    </section>
+        <!-- Setup Mode Section -->
+        <section id="setup-mode" class="mode-section active">
+            <div class="setup-options">
+                <h2>Create Your Spelling List</h2>
+                
+                <div class="option-group">
+                    <h3>Word Level</h3>
+                    <select id="word-level">
+                        <option value="simple">Simple (Easy Words)</option>
+                        <option value="useful">Useful (Common Words)</option>
+                        <option value="common">Common (Everyday Words)</option>
+                        <option value="uncommon">Uncommon (Challenge Words)</option>
+                    </select>
+                </div>
 
-    <!-- Word Generation Section -->
-    <section id="generationSection">
-        <label for="difficultyLevel">Select Difficulty Level:</label>
-        <select id="difficultyLevel">
-            <option value="simple">Simple</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-        </select>
-        <label for="wordCount">Number of Words (4-10):</label>
-        <input type="number" id="wordCount" value="6" min="4" max="10">
-        <button id="generateWordListButton">Generate Word List</button>
-        <div id="generatedWordsSection">
-            <h2>Generated Word List</h2>
-            <ol id="wordList"></ol>
-        </div>
-    </section>
+                <div class="option-group">
+                    <h3>Generation Type</h3>
+                    <select id="generation-type">
+                        <option value="random">Random Words</option>
+                        <option value="related">Related Words</option>
+                    </select>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="child-friendly" checked>
+                        <label for="child-friendly">Use child-friendly filter</label>
+                    </div>
+                </div>
 
-    <!-- Saved Sets Interface -->
-    <section id="savedSetsSection">
-        <h2>Saved Word Sets</h2>
-        <select id="savedSetsDropdown">
-            <option value="">Select a set</option>
-        </select>
-        <button id="loadSetButton">Load Set</button>
-    </section>
+                <div class="option-group">
+                    <h3>Number of Words</h3>
+                    <input type="range" id="word-count" min="4" max="10" value="5">
+                    <span id="word-count-display">5 words</span>
+                </div>
 
-    <!-- Test Mode Interface -->
-    <section id="testModeSection" style="display: none;">
-        <h2>Test Mode</h2>
-        <p>Testing Set: <span id="currentSetName"></span></p>
-        <label for="countdownSelect">Select countdown time between words:</label>
-        <select id="countdownSelect">
-            <option value="10">10 seconds</option>
-            <option value="20">20 seconds</option>
-            <option value="30">30 seconds</option>
-        </select>
-        <button id="startTestButton">Start Test</button>
-        <button id="pauseResumeButton" style="display: none;">Pause</button>
-        <button id="repeatButton" style="display: none;">Repeat</button>
-        <div id="testDisplay"></div>
-    </section>
+                <div class="option-group">
+                    <h3>Timer Delay</h3>
+                    <select id="timer-delay">
+                        <option value="10">10 seconds</option>
+                        <option value="20">20 seconds</option>
+                        <option value="30">30 seconds</option>
+                    </select>
+                </div>
 
+                <button id="generate-list" class="primary-btn">Generate Word List</button>
+                
+                <div class="divider">OR</div>
+                
+                <button id="show-manual-input" class="secondary-btn">Enter Words Manually</button>
+            </div>
+
+            <div id="word-list-container" class="hidden">
+                <h3>Your Spelling List</h3>
+                <div id="word-list" class="word-list"></div>
+                <button id="save-list" class="primary-btn">Save List</button>
+            </div>
+
+            <div id="manual-input-container" class="hidden">
+                <h3>Enter Your Words</h3>
+                <textarea id="manual-words" placeholder="Enter one word per line (4-10 words)"></textarea>
+                <button id="process-manual" class="primary-btn">Create List</button>
+            </div>
+        </section>
+
+        <!-- Test Mode Section -->
+        <section id="test-mode" class="mode-section hidden">
+            <div class="test-setup">
+                <h2>Start Your Spelling Test</h2>
+                
+                <div class="option-group">
+                    <h3>Select Word List</h3>
+                    <select id="saved-lists">
+                        <option value="">Choose a list...</option>
+                    </select>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="randomize-order">
+                    <label for="randomize-order">Randomize word order</label>
+                </div>
+
+                <button id="start-test" class="primary-btn" disabled>Start Test</button>
+            </div>
+
+            <div id="test-progress" class="hidden">
+                <div class="progress-container">
+                    <div class="current-word"></div>
+                    <div class="countdown"></div>
+                    <div class="progress-bar">
+                        <div class="progress"></div>
+                    </div>
+                </div>
+
+                <div class="test-controls">
+                    <button id="pause-test" class="control-btn">
+                        <i class="material-icons">pause</i>
+                    </button>
+                    <button id="repeat-word" class="control-btn">
+                        <i class="material-icons">replay</i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Alert Component -->
+    <div id="alert" class="alert hidden">
+        <span class="alert-message"></span>
+        <button class="close-alert">×</button>
+    </div>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => console.log('ServiceWorker registered'))
+                .catch(err => console.log('ServiceWorker registration failed:', err));
+        }
+    </script>
     <script src="app.js"></script>
 </body>
 </html>
