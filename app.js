@@ -1,202 +1,281 @@
-// Initialize OpenAI configuration (assuming an input for API key is handled elsewhere)
-async function fetchWordList(difficulty, wordCount) {
-    const apiKey = localStorage.getItem('openai_api_key');
-    if (!apiKey) {
-        alert('Please enter your OpenAI API key.');
-        return [];
-    }
+// Speech Synthesis setup
+const speech = window.speechSynthesis;
+let voices = [];
 
-    const openaiUrl = "https://api.openai.com/v1/chat/completions";
-    const response = await fetch(openaiUrl, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "system", content: "You are a helpful assistant." },
-                {
-                    role: "user",
-                    content: `Generate a list of ${wordCount} ${difficulty} spelling words suitable for a young child to learn, each with a simple sentence.`,
-                },
-            ],
-            max_tokens: 100,
-            temperature: 0.5,
-        })
-    });
+speech.onvoiceschanged = () => {
+    voices = speech.getVoices();
+};
 
-    if (!response.ok) {
-        throw new Error('Failed to fetch words from OpenAI');
-    }
+// App State
+const state = {
+    currentMode: 'setup',
+    currentList: [],
+    savedLists: [],
+    testInProgress: false,
+    currentWordIndex: 0,
+    timerDelay: 20,
+    isPaused: false,
+    countdown: null
+};
 
-    const data = await response.json();
-    if (data.choices && data.choices[0]) {
-        const text = data.choices[0].message.content;
-        return text.split('\n').map(line => {
-            const [word, sentence] = line.split(' - ');
-            return { word: word.trim(), sentence: sentence.trim() };
-        });
-    } else {
-        throw new Error('No valid response from OpenAI');
-    }
-}
+// DOM Elements
+const setupMode = document.getElementById('setup-mode');
+const testMode = document.getElementById('test-mode');
+const navBtns = document.querySelectorAll('.nav-btn');
+const wordLevel = document.getElementById('word-level');
+const generationType = document.getElementById('generation-type');
+const childFriendly = document.getElementById('child-friendly');
+const wordCount = document.getElementById('word-count');
+const wordCountDisplay = document.getElementById('word-count-display');
+const timerDelay = document.getElementById('timer-delay');
+const generateList = document.getElementById('generate-list');
+const showManualInput = document.getElementById('show-manual-input');
+const wordListContainer = document.getElementById('word-list-container');
+const wordList = document.getElementById('word-list');
+const saveList = document.getElementById('save-list');
+const manualInputContainer = document.getElementById('manual-input-container');
+const manualWords = document.getElementById('manual-words');
+const processManual = document.getElementById('process-manual');
+const savedLists = document.getElementById('saved-lists');
+const startTest = document.getElementById('start-test');
+const testProgress = document.getElementById('test-progress');
+const pauseTest = document.getElementById('pause-test');
+const repeatWord = document.getElementById('repeat-word');
+const randomizeOrder = document.getElementById('randomize-order');
 
-document.getElementById("saveApiKeyButton").addEventListener("click", () => {
-    const apiKey = document.getElementById("apiKeyInput").value;
-    if (apiKey) {
-        localStorage.setItem("openai_api_key", apiKey);
-        alert("API Key saved successfully!");
-    } else {
-        alert("Please enter a valid API key.");
-    }
-});
+// Utility Functions
+const showAlert = (message, type = 'success') => {
+    const alert = document.getElementById('alert');
+    const alertMessage = alert.querySelector('.alert-message');
+    
+    alert.className = `alert ${type}`;
+    alertMessage.textContent = message;
+    alert.classList.remove('hidden');
+    
+    setTimeout(() => alert.classList.add('hidden'), 3000);
+};
 
-// Save generated word list to localStorage with timestamp
-function saveWordSet(spellingList) {
-    const timestamp = new Date().toLocaleString();
-    const savedSets = JSON.parse(localStorage.getItem('savedSets')) || [];
-    const newSet = { name: `Set ${savedSets.length + 1} - ${timestamp}`, list: spellingList };
-    savedSets.push(newSet);
-    localStorage.setItem('savedSets', JSON.stringify(savedSets));
-    updateSavedSetsDropdown();
-}
-
-// Update dropdown menu with saved sets
-function updateSavedSetsDropdown() {
-    const dropdown = document.getElementById('savedSetsDropdown');
-    const savedSets = JSON.parse(localStorage.getItem('savedSets')) || [];
-    dropdown.innerHTML = '<option value="">Select a set</option>';
-    savedSets.forEach((set, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = set.name;
-        dropdown.appendChild(option);
-    });
-}
-
-// Load selected word set into test mode
-function loadSelectedSet() {
-    const dropdown = document.getElementById('savedSetsDropdown');
-    const selectedIndex = dropdown.value;
-    if (selectedIndex === "") {
-        alert("Please select a set to load.");
-        return;
-    }
-    const savedSets = JSON.parse(localStorage.getItem('savedSets'));
-    const selectedSet = savedSets[selectedIndex];
-    localStorage.setItem('currentSet', JSON.stringify(selectedSet));
-    document.getElementById('currentSetName').textContent = selectedSet.name;
-    showTestMode();
-}
-
-// Display Test Mode UI
-function showTestMode() {
-    document.getElementById('testModeSection').style.display = 'block';
-}
-
-// Test Mode Variables
-let testInterval;
-let currentIndex = 0;
-let paused = false;
-let currentSet = [];
-
-// Initialize Test Mode from the current set in localStorage
-function startTest() {
-    const setData = JSON.parse(localStorage.getItem('currentSet'));
-    if (!setData || !setData.list) {
-        alert("No set loaded for testing. Please load a set.");
-        return;
-    }
-
-    currentSet = setData.list;
-    currentIndex = 0;
-    const countdownTime = parseInt(document.getElementById("countdownSelect").value);
-
-    // Start test sequence
-    startTestSequence(countdownTime);
-    document.getElementById('pauseResumeButton').style.display = 'inline';
-    document.getElementById('repeatButton').style.display = 'inline';
-}
-
-// Start or resume the test sequence
-function startTestSequence(countdownTime) {
-    paused = false;
-    testInterval = setInterval(() => {
-        if (currentIndex < currentSet.length && !paused) {
-            showWordAndCountdown(currentSet[currentIndex], countdownTime);
-            currentIndex++;
-        } else {
-            clearInterval(testInterval);
-            if (currentIndex >= currentSet.length) {
-                alert("Test complete!");
-            }
-        }
-    }, countdownTime * 1000);
-}
-
-// Show word and countdown
-function showWordAndCountdown(wordData, countdownTime) {
-    const testDisplay = document.getElementById("testDisplay");
-    testDisplay.innerHTML = `<p>Word: <strong>${wordData.word}</strong></p><p>Sentence: ${wordData.sentence}</p>`;
-    speakText(`The word is ${wordData.word}. Here is a sentence: ${wordData.sentence}.`);
-}
-
-// Pause or resume test sequence
-function togglePauseResume() {
-    if (paused) {
-        paused = false;
-        startTestSequence(parseInt(document.getElementById("countdownSelect").value));
-        document.getElementById('pauseResumeButton').textContent = 'Pause';
-    } else {
-        paused = true;
-        clearInterval(testInterval);
-        document.getElementById('pauseResumeButton').textContent = 'Resume';
-    }
-}
-
-// Repeat the last word and sentence
-function repeatWord() {
-    if (currentIndex > 0) {
-        const lastWord = currentSet[currentIndex - 1];
-        showWordAndCountdown(lastWord, 0);
-    } else {
-        alert("No word to repeat.");
-    }
-}
-
-// Use Web Speech API to speak text
-function speakText(text) {
+const speak = (text, callback) => {
     const utterance = new SpeechSynthesisUtterance(text);
-    speechSynthesis.speak(utterance);
-}
+    utterance.voice = voices.find(voice => voice.lang === 'en-US');
+    utterance.rate = 0.9;
+    
+    if (callback) {
+        utterance.onend = callback;
+    }
+    
+    speech.speak(utterance);
+};
+
+const shuffle = array => {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+};
+
+// Local Storage Functions
+const saveToLocalStorage = () => {
+    localStorage.setItem('spellingLists', JSON.stringify(state.savedLists));
+    localStorage.setItem('currentList', JSON.stringify(state.currentList));
+};
+
+const loadFromLocalStorage = () => {
+    const savedLists = localStorage.getItem('spellingLists');
+    const currentList = localStorage.getItem('currentList');
+    
+    if (savedLists) {
+        state.savedLists = JSON.parse(savedLists);
+        updateSavedListsDropdown();
+    }
+    
+    if (currentList) {
+        state.currentList = JSON.parse(currentList);
+        displayWordList(state.currentList);
+    }
+};
+
+// Word Generation Functions
+const generateWords = async () => {
+    // In a real implementation, this would call an API
+    // For demo purposes, we'll use a small set of predefined words
+    const wordSets = {
+        simple: [
+            { word: 'cat', sentence: 'The **cat** played with yarn.' },
+            { word: 'dog', sentence: 'My **dog** likes to fetch balls.' },
+            { word: 'hat', sentence: 'I wear a **hat** when it's sunny.' },
+            { word: 'run', sentence: 'I like to **run** in the park.' },
+            { word: 'jump', sentence: 'Can you **jump** over the rope?' }
+        ],
+        useful: [
+            { word: 'because', sentence: '**Because** it was raining, we stayed inside.' },
+            { word: 'through', sentence: 'We walked **through** the forest.' },
+            { word: 'friend', sentence: 'My best **friend** lives next door.' },
+            { word: 'people', sentence: 'Many **people** came to the party.' },
+            { word: 'should', sentence: 'We **should** do our homework.' }
+        ]
+        // Add more word sets for other levels
+    };
+
+    const count = parseInt(wordCount.value);
+    const level = wordLevel.value;
+    const words = wordSets[level] || wordSets.simple;
+    
+    return shuffle(words).slice(0, count);
+};
+
+const displayWordList = (words) => {
+    wordList.innerHTML = words.map((item, index) => `
+        <div class="word-item">
+            <div class="word">${index + 1}. ${item.word}</div>
+            <div class="sentence">${item.sentence}</div>
+        </div>
+    `).join('');
+    
+    wordListContainer.classList.remove('hidden');
+};
+
+// Test Mode Functions
+const startSpellingTest = () => {
+    state.testInProgress = true;
+    state.currentWordIndex = 0;
+    state.isPaused = false;
+    
+    const testWords = randomizeOrder.checked ? 
+        shuffle([...state.currentList]) : 
+        [...state.currentList];
+    
+    state.currentList = testWords;
+    testProgress.classList.remove('hidden');
+    
+    speak("Let's begin the spelling test.", () => {
+        speakCurrentWord();
+    });
+};
+
+const speakCurrentWord = () => {
+    if (state.currentWordIndex >= state.currentList.length) {
+        endTest();
+        return;
+    }
+    
+    const currentWord = state.currentList[state.currentWordIndex];
+    speak(`Word number ${state.currentWordIndex + 1}: ${currentWord.word}. 
+           ${currentWord.sentence}. 
+           Again, the word is: ${currentWord.word}`, () => {
+        startWordTimer();
+    });
+};
+
+const startWordTimer = () => {
+    let timeLeft = state.timerDelay;
+    const progressBar = document.querySelector('.progress');
+    
+    state.countdown = setInterval(() => {
+        if (state.isPaused) return;
+        
+        timeLeft--;
+        progressBar.style.width = `${(timeLeft / state.timerDelay) * 100}%`;
+        
+        if (timeLeft <= 10) {
+            speak(timeLeft.toString());
+        }
+        
+        if (timeLeft === 0) {
+            clearInterval(state.countdown);
+            state.currentWordIndex++;
+            speakCurrentWord();
+        }
+    }, 1000);
+};
+
+const endTest = () => {
+    clearInterval(state.countdown);
+    state.testInProgress = false;
+    speak("The test is complete. Please put down your pencil.");
+    testProgress.classList.add('hidden');
+};
 
 // Event Listeners
-document.getElementById("generateWordListButton").addEventListener("click", async () => {
-    const difficulty = document.getElementById('difficultyLevel').value;
-    const wordCount = parseInt(document.getElementById('wordCount').value);
-
-    try {
-        const wordList = await fetchWordList(difficulty, wordCount);
-        saveWordSet(wordList);
-
-        const wordListElem = document.getElementById("wordList");
-        wordListElem.innerHTML = "";
-        wordList.forEach(item => {
-            const li = document.createElement("li");
-            li.textContent = `${item.word} - ${item.sentence}`;
-            wordListElem.appendChild(li);
-        });
-    } catch (error) {
-        console.error("Error fetching words:", error);
-        alert("Failed to generate words. Check the console for details.");
-    }
+navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        state.currentMode = mode;
+        
+        navBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        setupMode.classList.toggle('hidden', mode !== 'setup');
+        testMode.classList.toggle('hidden', mode !== 'test');
+    });
 });
-document.getElementById("loadSetButton").addEventListener("click", loadSelectedSet);
-document.getElementById("startTestButton").addEventListener("click", startTest);
-document.getElementById("pauseResumeButton").addEventListener("click", togglePauseResume);
-document.getElementById("repeatButton").addEventListener("click", repeatWord);
 
-// Initialize saved sets on load
-updateSavedSetsDropdown();
+wordCount.addEventListener('input', () => {
+    wordCountDisplay.textContent = `${wordCount.value} words`;
+});
+
+generateList.addEventListener('click', async () => {
+    const words = await generateWords();
+    state.currentList = words;
+    displayWordList(words);
+    saveToLocalStorage();
+});
+
+showManualInput.addEventListener('click', () => {
+    manualInputContainer.classList.remove('hidden');
+    wordListContainer.classList.add('hidden');
+});
+
+processManual.addEventListener('click', () => {
+    const text = manualWords.value.trim();
+    const words = text.split('\n')
+        .filter(word => word.trim())
+        .map(word => ({
+            word: word.trim(),
+            sentence: `The word is **${word.trim()}**.`
+        }));
+    
+    if (words.length < 4 || words.length > 10) {
+        showAlert('Please enter between 4 and 10 words.', 'error');
+        return;
+    }
+    
+    state.currentList = words;
+    displayWordList(words);
+    manualInputContainer.classList.add('hidden');
+    wordListContainer.classList.remove('hidden');
+    saveToLocalStorage();
+});
+
+saveList.addEventListener('click', () => {
+    const listName = prompt('Enter a name for this list:');
+    if (!listName) return;
+    
+    state.savedLists.push({
+        name: listName,
+        words: state.currentList
+    });
+    
+    saveToLocalStorage();
+    updateSavedListsDropdown();
+    showAlert('List saved successfully!');
+});
+
+startTest.addEventListener('click', startSpellingTest);
+
+pauseTest.addEventListener('click', () => {
+    state.isPaused = !state.isPaused;
+    pauseTest.innerHTML = `<i class="material-icons">${state.isPaused ? 'play_arrow' : 'pause'}</i>`;
+});
+
+repeatWord.addEventListener('click', () => {
+    if (!state.testInProgress) return;
+    clearInterval(state.countdown);
+    speakCurrentWord();
+});
+
+// Initialize app
+document.addEventListener('DOMContentLoaded', () => {
+    loadFromLocalStorage();
+});
