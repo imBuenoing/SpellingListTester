@@ -43,6 +43,16 @@ async function fetchWordList(difficulty, wordCount) {
     }
 }
 
+document.getElementById("saveApiKeyButton").addEventListener("click", () => {
+    const apiKey = document.getElementById("apiKeyInput").value;
+    if (apiKey) {
+        localStorage.setItem("openai_api_key", apiKey);
+        alert("API Key saved successfully!");
+    } else {
+        alert("Please enter a valid API key.");
+    }
+});
+
 // Save generated word list to localStorage with timestamp
 function saveWordSet(spellingList) {
     const timestamp = new Date().toLocaleString();
