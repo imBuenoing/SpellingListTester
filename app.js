@@ -5,7 +5,7 @@ if ('serviceWorker' in navigator) {
     .catch(error => console.error("Service Worker Registration Failed:", error));
 }
 
-// Prompt for generating simple, child-friendly words and sentences
+// Function to fetch words from OpenAI API
 async function fetchWordsFromOpenAI(numberOfWords) {
     const apiKey = localStorage.getItem('openaiApiKey');
     if (!apiKey) {
@@ -27,7 +27,7 @@ async function fetchWordsFromOpenAI(numberOfWords) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "gpt-4o-mini",
+                model: "gpt-3.5-turbo",
                 messages: [
                     { role: "system", content: "You are a helpful assistant." },
                     { role: "user", content: prompt }
@@ -42,15 +42,25 @@ async function fetchWordsFromOpenAI(numberOfWords) {
 
         const data = await response.json();
 
-        // Verify response format and parse word list
-        const wordListContent = data.choices?.[0]?.message?.content;
-        if (!wordListContent) {
+        // Verify that choices array exists and has content
+        if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
             throw new Error("Unexpected response format from OpenAI API.");
         }
 
-        const wordList = JSON.parse(wordListContent);
-        localStorage.setItem('spellingList', JSON.stringify(wordList));
+        const wordListContent = data.choices[0].message.content;
+        
+        // Try parsing the JSON response from OpenAI
+        let wordList;
+        try {
+            wordList = JSON.parse(wordListContent);
+        } catch (parseError) {
+            console.error("Failed to parse JSON from OpenAI response:", parseError);
+            alert("The response format from OpenAI was not as expected.");
+            return;
+        }
 
+        // Save to localStorage and return the word list
+        localStorage.setItem('spellingList', JSON.stringify(wordList));
         console.log("Generated word list saved:", wordList);
         return wordList;
 
@@ -67,7 +77,14 @@ async function generateAndDisplayWordList(numberOfWords) {
     const listContainer = document.getElementById('wordListContainer');
     listContainer.innerHTML = "";
 
-    wordList?.forEach((item, index) => {
+    if (!wordList || wordList.length === 0) {
+        const errorMessage = document.createElement('p');
+        errorMessage.textContent = "No words were generated. Please try again.";
+        listContainer.appendChild(errorMessage);
+        return;
+    }
+
+    wordList.forEach((item, index) => {
         const listItem = document.createElement('p');
         listItem.innerHTML = `${index + 1}. ${item.word} - ${item.sentence}`;
         listContainer.appendChild(listItem);
