@@ -10,10 +10,10 @@
 <body>
     <h1>Spelling List Tester</h1>
 
-    <!-- API Key Input (Visible only if no key is saved) -->
+    <!-- OpenAI API Key Input -->
     <section id="apiKeySection">
         <label for="apiKeyInput">Enter OpenAI API Key:</label>
-        <input type="text" id="apiKeyInput" placeholder="Your OpenAI API Key">
+        <input id="apiKeyInput" type="text" placeholder="Enter API Key">
         <button id="saveApiKeyButton">Save API Key</button>
     </section>
 
@@ -22,9 +22,6 @@
         <label for="difficultySelect">Select Difficulty Level:</label>
         <select id="difficultySelect">
             <option value="simple">Simple</option>
-            <option value="useful">Useful</option>
-            <option value="common">Common</option>
-            <option value="uncommon">Uncommon</option>
         </select>
 
         <label for="wordCountSelect">Number of Words (4-10):</label>
