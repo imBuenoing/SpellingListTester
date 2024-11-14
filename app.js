@@ -1,3 +1,92 @@
+// API Key Management
+let apiKey = localStorage.getItem('openai_api_key');
+
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveApiKeyButton = document.getElementById('saveApiKeyButton');
+const apiKeySection = document.getElementById('api-key-section');
+
+// Show/hide API key section based on whether key exists
+if (apiKey) {
+    apiKeySection.classList.add('hidden');
+}
+
+saveApiKeyButton.addEventListener('click', () => {
+    const key = apiKeyInput.value.trim();
+    if (key) {
+        localStorage.setItem('openai_api_key', key);
+        apiKey = key;
+        apiKeySection.classList.add('hidden');
+        showAlert('API key saved successfully!');
+    } else {
+        showAlert('Please enter a valid API key', 'error');
+    }
+});
+
+// Update the generateWords function to use OpenAI API
+const generateWords = async () => {
+    if (!apiKey) {
+        showAlert('Please set your OpenAI API key first', 'error');
+        apiKeySection.classList.remove('hidden');
+        return [];
+    }
+
+    const level = wordLevel.value;
+    const type = generationType.value;
+    const count = parseInt(wordCount.value);
+    const isChildFriendly = childFriendly.checked;
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [{
+                    role: "system",
+                    content: `You are a helpful assistant that generates spelling word lists. Generate ${count} ${level} words that are ${type === 'related' ? 'thematically related' : 'random'}. ${isChildFriendly ? 'Ensure all words are child-friendly.' : ''}`
+                }, {
+                    role: "user",
+                    content: `Generate ${count} words with example sentences. Format each word as a JSON object with 'word' and 'sentence' properties. The sentence should use the word naturally and mark the word with ** around it. Return only the JSON array.`
+                }],
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('API request failed');
+        }
+
+        const data = await response.json();
+        const wordList = JSON.parse(data.choices[0].message.content);
+        
+        return wordList;
+    } catch (error) {
+        console.error('Error generating words:', error);
+        showAlert('Failed to generate words. Please try again.', 'error');
+        return [];
+    }
+};
+
+// Update the generateList click handler
+generateList.addEventListener('click', async () => {
+    generateList.disabled = true;
+    generateList.textContent = 'Generating...';
+    
+    const words = await generateWords();
+    
+    generateList.disabled = false;
+    generateList.textContent = 'Generate Word List';
+    
+    if (words.length > 0) {
+        state.currentList = words;
+        displayWordList(words);
+        saveToLocalStorage();
+    }
+});
+
 // Speech Synthesis setup
 const speech = window.speechSynthesis;
 let voices = [];
