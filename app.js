@@ -112,3 +112,94 @@ document.getElementById("generateButton").addEventListener("click", () => {
     const numberOfWords = parseInt(document.getElementById("wordCountSelect").value);
     generateAndDisplayWordList(numberOfWords);
 });
+
+// Display the Test Mode section if words are available
+function showTestMode() {
+    const testModeSection = document.getElementById('testModeSection');
+    const spellingList = JSON.parse(localStorage.getItem('spellingList'));
+
+    if (spellingList && spellingList.length > 0) {
+        testModeSection.style.display = 'block';
+    } else {
+        testModeSection.style.display = 'none';
+    }
+}
+
+// Function to initiate the test mode
+async function startTest() {
+    const spellingList = JSON.parse(localStorage.getItem('spellingList'));
+    if (!spellingList || spellingList.length === 0) {
+        alert("No words to test. Please generate a word list first.");
+        return;
+    }
+
+    // Retrieve countdown time and randomize order option
+    const countdownTime = parseInt(document.getElementById("countdownSelect").value);
+    const randomOrder = document.getElementById("randomOrderCheckbox").checked;
+
+    // Shuffle the list if random order is selected
+    const wordsToTest = randomOrder ? shuffleArray(spellingList) : [...spellingList];
+
+    // Display the test sequence
+    await runTestSequence(wordsToTest, countdownTime);
+}
+
+// Function to shuffle an array (Fisher-Yates Shuffle)
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// Function to handle the test sequence
+async function runTestSequence(wordList, countdownTime) {
+    const testDisplay = document.getElementById("testDisplay");
+    testDisplay.innerHTML = "<h3>Spelling Test in Progress</h3>";
+
+    for (const item of wordList) {
+        testDisplay.innerHTML = `<p>Word: <strong>${item.word}</strong></p><p>Sentence: ${item.sentence}</p>`;
+        await speakAndCountdown(item.word, item.sentence, countdownTime);
+    }
+
+    // Final summary announcement
+    testDisplay.innerHTML += "<p>Test complete! Review your answers.</p>";
+    await speakText("The test has ended. You have one minute to review your answers.");
+    await countdown(60);
+    testDisplay.innerHTML += "<p>Test has officially ended. Please put down your pencil.</p>";
+    await speakText("Test has officially ended. Please put down your pencil.");
+}
+
+// Function to speak a word and sentence with a countdown
+async function speakAndCountdown(word, sentence, countdownTime) {
+    await speakText(`The word is ${word}. Here is a sentence: ${sentence}.`);
+    await countdown(countdownTime);
+}
+
+// Function to speak text using Web Speech API
+async function speakText(text) {
+    return new Promise((resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = resolve;
+        speechSynthesis.speak(utterance);
+    });
+}
+
+// Function to handle countdown display and audio cue
+async function countdown(seconds) {
+    const testDisplay = document.getElementById("testDisplay");
+    for (let i = seconds; i > 0; i--) {
+        testDisplay.innerHTML = `<p>Countdown: ${i} seconds</p>`;
+        if (i <= 10) {
+            await speakText(i.toString());
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+}
+
+// Attach event listener to "Start Test" button
+document.getElementById("startTestButton").addEventListener("click", startTest);
+
+// Show Test Mode section if there is a word list available
+showTestMode();
