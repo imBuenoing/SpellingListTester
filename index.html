@@ -35,23 +35,29 @@
     <div id="wordListContainer"></div>
 
     <script src="app.js"></script>
-    
-    <!-- Test Mode Interface -->
+
+    <!-- Saved Sets Interface -->
+<section id="savedSetsSection">
+    <h2>Saved Word Sets</h2>
+    <select id="savedSetsDropdown">
+        <option value="">Select a set</option>
+    </select>
+    <button id="loadSetButton">Load Set</button>
+</section>
+
+<!-- Test Mode Interface -->
 <section id="testModeSection" style="display: none;">
     <h2>Test Mode</h2>
+    <p>Testing Set: <span id="currentSetName"></span></p>
     <label for="countdownSelect">Select countdown time between words:</label>
     <select id="countdownSelect">
         <option value="10">10 seconds</option>
         <option value="20">20 seconds</option>
         <option value="30">30 seconds</option>
     </select>
-
-    <label>
-        <input type="checkbox" id="randomOrderCheckbox">
-        Randomize word order
-    </label>
-
     <button id="startTestButton">Start Test</button>
+    <button id="pauseResumeButton" style="display: none;">Pause</button>
+    <button id="repeatButton" style="display: none;">Repeat</button>
     <div id="testDisplay"></div>
 </section>
 
